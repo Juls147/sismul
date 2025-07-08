@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visualisasi Algoritma RLE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .char-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        margin: 4px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.5s ease-in-out;
+        transform-origin: center;
+      }
+      .char-box-group {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        margin: 4px;
+        padding: 0 8px;
+        transition: all 0.5s ease-in-out;
+        border: 2px dashed;
+      }
+      .highlight-scan {
+        transform: scale(1.15);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.7);
+      }
+      .highlight-group {
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.7);
+      }
+      .highlight-encoded {
+        transform: scale(1.15);
+        box-shadow: 0 0 20px rgba(234, 179, 8, 0.7);
+      }
+      .fade-out {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+      .fade-in {
+        opacity: 1;
+        transform: scale(1);
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4"
+  >
+    <div
+      class="w-full max-w-4xl bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-700"
+    >
+      <header class="text-center mb-6">
+        <h1
+          class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400"
+        >
+          Visualisasi Algoritma RLE
+        </h1>
+        <p class="text-gray-400 mt-2">
+          Pahami cara kerja Run-Length Encoding melalui animasi interaktif.
+        </p>
+      </header>
+
+      <!-- Input Section -->
+      <div class="bg-gray-900/60 p-4 rounded-lg mb-6 border border-gray-700">
+        <label
+          for="string-input"
+          class="block mb-2 text-sm font-medium text-gray-300"
+          >Masukkan teks di sini (contoh: AAAAABBBCCDAA):</label
+        >
+        <div class="flex flex-col sm:flex-row gap-4">
+          <input
+            type="text"
+            id="string-input"
+            class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+            placeholder="Ketik teks..."
+          />
+          <div class="flex gap-2">
+            <button
+              id="compress-btn"
+              class="w-full sm:w-auto text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-300"
+            >
+              Kompres
+            </button>
+            <button
+              id="reset-btn"
+              class="w-full sm:w-auto text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition duration-300"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Message -->
+      <div
+        id="status-message"
+        class="text-center h-10 p-2 my-4 text-emerald-300 font-medium transition-opacity duration-300"
+      ></div>
+
+      <!-- Visualization Area -->
+      <div class="space-y-6">
+        <!-- Compression Stages -->
+        <div>
+          <h2
+            class="text-lg font-semibold mb-2 text-blue-300 border-b-2 border-gray-700 pb-1"
+          >
+            1. Proses Kompresi
+          </h2>
+          <div
+            class="bg-gray-900/60 p-4 rounded-lg min-h-[80px] border border-gray-700"
+          >
+            <p class="text-sm text-gray-400 mb-2">Input Asli:</p>
+            <div id="input-display" class="flex flex-wrap items-center"></div>
+          </div>
+          <div
+            class="bg-gray-900/60 p-4 rounded-lg min-h-[80px] border border-gray-700 mt-4"
+          >
+            <p class="text-sm text-gray-400 mb-2">Hasil Kompresi (RLE):</p>
+            <div id="encoded-output" class="flex flex-wrap items-center"></div>
+          </div>
+        </div>
+
+        <!-- Decompression Stage -->
+        <div>
+          <h2
+            class="text-lg font-semibold mb-2 text-emerald-300 border-b-2 border-gray-700 pb-1"
+          >
+            2. Proses Dekompresi
+          </h2>
+          <div
+            class="bg-gray-900/60 p-4 rounded-lg min-h-[80px] border border-gray-700"
+          >
+            <p class="text-sm text-gray-400 mb-2">
+              Hasil Dekompresi (Kembali ke Asli):
+            </p>
+            <div id="decoded-output" class="flex flex-wrap items-center"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- DOM Elements ---
+      const stringInput = document.getElementById("string-input");
+      const compressBtn = document.getElementById("compress-btn");
+      const resetBtn = document.getElementById("reset-btn");
+      const inputDisplay = document.getElementById("input-display");
+      const encodedOutput = document.getElementById("encoded-output");
+      const decodedOutput = document.getElementById("decoded-output");
+      const statusMessage = document.getElementById("status-message");
+
+      // --- State ---
+      let isAnimating = false;
+
+      // --- Helper Functions ---
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const colors = [
+        "bg-red-500",
+        "bg-yellow-500",
+        "bg-green-500",
+        "bg-blue-500",
+        "bg-indigo-500",
+        "bg-purple-500",
+        "bg-pink-500",
+        "bg-sky-500",
+      ];
+      const charColorMap = new Map();
+      let colorIndex = 0;
+
+      function getCharColor(char) {
+        if (!charColorMap.has(char)) {
+          charColorMap.set(char, colors[colorIndex % colors.length]);
+          colorIndex++;
+        }
+        return charColorMap.get(char);
+      }
+
+      function createCharBox(char, isEncoded = false) {
+        const box = document.createElement("div");
+        box.textContent = char;
+        if (isEncoded) {
+          box.className = "char-box-group border-yellow-500 text-yellow-300";
+        } else {
+          box.className = `char-box text-gray-900 ${getCharColor(char)}`;
+        }
+        box.style.opacity = "0";
+        box.style.transform = "scale(0.5)";
+        return box;
+      }
+
+      function setStatus(message, clearAfter = 0) {
+        statusMessage.textContent = message;
+        if (clearAfter > 0) {
+          setTimeout(() => {
+            if (statusMessage.textContent === message) {
+              statusMessage.textContent = "";
+            }
+          }, clearAfter);
+        }
+      }
+
+      // --- Animation Logic ---
+
+      async function animateCompression(input) {
+        setStatus("Memulai proses kompresi...");
+        await sleep(500);
+
+        // 1. Tampilkan input asli
+        const inputChars = input.split("");
+        const inputBoxes = [];
+        for (const char of inputChars) {
+          const box = createCharBox(char);
+          inputDisplay.appendChild(box);
+          inputBoxes.push(box);
+          await sleep(50);
+          box.style.opacity = "1";
+          box.style.transform = "scale(1)";
+        }
+        await sleep(1000);
+
+        let encodedString = "";
+        let i = 0;
+        while (i < input.length) {
+          const char = input[i];
+          let count = 1;
+
+          // Tandai karakter yang sedang dipindai
+          setStatus(`Memindai karakter '${char}'...`);
+          inputBoxes[i].classList.add("highlight-scan");
+          await sleep(600);
+
+          // Hitung karakter yang berurutan
+          let j = i + 1;
+          while (j < input.length && input[j] === char) {
+            count++;
+            j++;
+          }
+
+          // Tandai grup karakter yang sama
+          const groupBoxes = inputBoxes.slice(i, j);
+          groupBoxes.forEach((box) => box.classList.add("highlight-group"));
+          setStatus(
+            `Menemukan ${count} buah karakter '${char}' secara berurutan.`
+          );
+          await sleep(1000);
+
+          // Buat output yang dikompresi
+          const encodedPair = `${count}${char}`;
+          encodedString += encodedPair;
+          const encodedBox = createCharBox(encodedPair, true);
+          encodedOutput.appendChild(encodedBox);
+
+          // Animasikan transisi
+          groupBoxes.forEach((box) => {
+            box.classList.remove("highlight-scan", "highlight-group");
+            box.classList.add("fade-out");
+          });
+
+          await sleep(500);
+          encodedBox.style.opacity = "1";
+          encodedBox.style.transform = "scale(1)";
+          setStatus(`Mengkompresi grup menjadi '${encodedPair}'.`);
+          await sleep(1000);
+
+          i = j;
+        }
+        setStatus("Proses kompresi selesai!");
+        return encodedString;
+      }
+
+      async function animateDecompression(encoded) {
+        setStatus("Memulai proses dekompresi...");
+        await sleep(1500);
+
+        const encodedBoxes = Array.from(encodedOutput.children);
+        let match;
+        const regex = /(\d+)(\D)/g;
+
+        while ((match = regex.exec(encoded)) !== null) {
+          const count = parseInt(match[1], 10);
+          const char = match[2];
+          const correspondingBox = encodedBoxes.find(
+            (b) => b.textContent === match[0]
+          );
+
+          if (correspondingBox) {
+            setStatus(`Mendekompresi '${match[0]}'...`);
+            correspondingBox.classList.add("highlight-encoded");
+            await sleep(1000);
+
+            for (let k = 0; k < count; k++) {
+              const decodedBox = createCharBox(char);
+              decodedOutput.appendChild(decodedBox);
+              await sleep(100);
+              decodedBox.style.opacity = "1";
+              decodedBox.style.transform = "scale(1)";
+            }
+            correspondingBox.classList.remove("highlight-encoded");
+            await sleep(500);
+          }
+        }
+        setStatus("Proses dekompresi selesai! Data kembali seperti semula.");
+      }
+
+      // --- Event Handlers ---
+      async function handleCompress() {
+        if (isAnimating) return;
+        const input = stringInput.value.trim().toUpperCase();
+        if (!input) {
+          setStatus("Input tidak boleh kosong!", 2000);
+          return;
+        }
+
+        isAnimating = true;
+        compressBtn.disabled = true;
+        resetBtn.disabled = true;
+        compressBtn.classList.add("opacity-50", "cursor-not-allowed");
+
+        handleReset(false); // Reset tampilan tanpa membersihkan input
+
+        const encodedString = await animateCompression(input);
+        await sleep(1000);
+        await animateDecompression(encodedString);
+
+        isAnimating = false;
+        compressBtn.disabled = false;
+        resetBtn.disabled = false;
+        compressBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      }
+
+      function handleReset(clearInput = true) {
+        if (clearInput) {
+          stringInput.value = "";
+        }
+        inputDisplay.innerHTML = "";
+        encodedOutput.innerHTML = "";
+        decodedOutput.innerHTML = "";
+        statusMessage.innerHTML = "";
+        charColorMap.clear();
+        colorIndex = 0;
+      }
+
+      // --- Initial Setup ---
+      compressBtn.addEventListener("click", handleCompress);
+      resetBtn.addEventListener("click", () => handleReset(true));
+      stringInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") {
+          handleCompress();
+        }
+      });
+    </script>
+  </body>
+</html>
